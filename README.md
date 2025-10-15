@@ -5,7 +5,9 @@ Projeto desenvolvido para monitorar **temperatura, umidade e luminosidade** em t
 ---
 
 ## 🧠 Objetivo
+
 Criar um sistema capaz de:
+
 - Detectar variações ambientais críticas.
 - Exibir leituras em um display LCD.
 - Acionar alarmes visuais (LEDs) e sonoros (Piezo).
@@ -14,6 +16,7 @@ Criar um sistema capaz de:
 ---
 
 ## ⚙️ Componentes utilizados
+
 | Componente | Função | Pinos utilizados |
 |-------------|--------|------------------|
 | ESP32 | Microcontrolador principal | — |
@@ -28,18 +31,23 @@ Criar um sistema capaz de:
 ---
 
 ## 🧩 Ligações elétricas (esquemático)
-> imagem do wokwi
-> `esquematico_sistema.png`
+
+<div align="center">
+
+![Esquemática do Sistema](images/system_schematic.png)
+
+</div>
 
 ---
 
 ## 💻 Código-fonte
+
 O código principal está no arquivo:
-> link do código  
+[👉 Visualizar código no GitHub](sourceCode/esp32_monitoring.cpp)
 
 ---
 
-## 📚 Principais bibliotecas:
+## 📚 Principais bibliotecas
 
 ```cpp
 #include <Adafruit_Sensor.h>
@@ -53,7 +61,7 @@ Instale-as na IDE do Arduino via Gerenciador de Bibliotecas.
 
 ---
 
-## 🚦 Lógica de funcionamento:
+## 🚦 Lógica de funcionamento
 
 | Estado | Condições | Ações |
 |-------------|--------|------------------|
@@ -63,7 +71,7 @@ Instale-as na IDE do Arduino via Gerenciador de Bibliotecas.
 
 ---
 
-## 🔁 Fluxo de execução:
+## 🔁 Fluxo de execução
 
 1. Leitura dos sensores (DHT e LDR)
 2. Conversão dos valores (map)
@@ -75,7 +83,7 @@ Instale-as na IDE do Arduino via Gerenciador de Bibliotecas.
 
 ---
 
-## 🧠 Faixas de referência:
+## 🧠 Faixas de referência
 
 | Parâmetro | OK | ALERTA | PERIGO |
 |-------------|--------|------------------|------------------|
@@ -85,16 +93,16 @@ Instale-as na IDE do Arduino via Gerenciador de Bibliotecas.
 
 ---
 
-## 🗂️ Estrutura do repositório:
+## 🗂️ Estrutura do repositório
 
 ```bash
 📁 esp32-smart-environment
 │
 ├── 📄 README.md
 ├── 📁 sourceCode
-│   └── monitoramento_esp32.cpp
+│   └── esp32_monitoring.cpp
 ├── 📁 images
-│   └── esquematico_sistema.png
+│   └── system_schematic.png
 └── 📁 configs
     └── mymqtt_config.txt
 ```
