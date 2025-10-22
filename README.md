@@ -106,7 +106,7 @@ Para testar o projeto sem precisar da VM ou hardware físico, você pode usar a 
 
 | Parâmetro | Valor |
 |------------|--------|
-| **Broker** | `3.90.205.40` |
+| **Broker** | `{PUBLIC_IP_VM}` |
 | **Porta** | `1883` |
 | **Tópico de publicação** | `esp32/ambiente/dados` |
 | **Tópicos de comando** | `esp32/ambiente/buzzer`, `esp32/ambiente/led_ok`, `esp32/ambiente/led_alert`, `esp32/ambiente/led_danger` |
