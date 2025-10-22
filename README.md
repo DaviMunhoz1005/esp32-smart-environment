@@ -38,6 +38,90 @@ Criar um sistema capaz de:
 
 </div>
 
+## 💻 Simulação Wokwi
+
+Para testar o projeto sem precisar da VM ou hardware físico, você pode usar a simulação no **Wokwi**:  
+[Link da Simulação Wokwi](https://wokwi.com/projects/444923253527449601)
+
+## 🧰 Componentes Utilizados
+
+- **ESP32 Dev Module**
+- **Sensor DHT22** – mede temperatura e umidade do ambiente  
+- **LDR (Sensor de Luminosidade)** – mede intensidade da luz  
+- **LCD 16x2 com módulo I2C** – exibe leituras e estado atual  
+- **Buzzer Piezoelétrico** – emite alertas sonoros  
+- **LEDs (3x):**
+  - Verde – Estado OK  
+  - Amarelo – Estado de Alerta  
+  - Vermelho – Estado de Perigo  
+- **Resistores** (para LEDs e LDR)
+- **Jumpers e Protoboard**
+
+---
+
+## 🧠 Função dos Componentes
+
+| Componente | Função |
+|-------------|--------|
+| **ESP32** | Unidade principal. Faz leitura dos sensores, controla LEDs, buzina e envia dados via Wi-Fi/MQTT. |
+| **DHT22** | Mede a temperatura (°C) e umidade relativa do ar (%). |
+| **LDR** | Detecta a luminosidade do ambiente e converte em percentual. |
+| **LCD I2C 16x2** | Mostra os valores lidos e mensagens de status (“OK”, “ALERTA”, “PERIGO”). |
+| **Buzzer (Piezo)** | Emite sons de alerta quando há risco ambiental. |
+| **LEDs** | Indicadores visuais do estado do ambiente. |
+
+---
+
+## ⚙️ Recursos Necessários
+
+### 🧩 Hardware (Simulação no Wokwi)
+- ESP32 Dev Module  
+- Sensor DHT22  
+- LDR com resistor de pull-down  
+- Buzzer  
+- LEDs (vermelho, amarelo, verde)  
+- Display LCD I2C  
+- Protoboard + Jumpers  
+
+### 💡 Hardware (Físico)
+- Mesmo da simulação  
+- Cabo USB para alimentação e programação  
+- Fonte de 5V (opcional para operação autônoma)
+
+### 💻 Software / Ferramentas
+
+- **Arduino IDE** (ou PlatformIO)
+- **Bibliotecas**:
+  - `WiFi.h`
+  - `PubSubClient.h`
+  - `DHT.h`
+  - `DHT_U.h`
+  - `LiquidCrystal_I2C.h`
+- **Broker MQTT** (ex: Mosquitto, HiveMQ ou FIWARE)
+- **MQTT Explorer** ou **mosquitto_pub/sub** (para testes)
+
+---
+
+## 📡 Configuração MQTT
+
+| Parâmetro | Valor |
+|------------|--------|
+| **Broker** | `3.90.205.40` |
+| **Porta** | `1883` |
+| **Tópico de publicação** | `esp32/ambiente/dados` |
+| **Tópicos de comando** | `esp32/ambiente/buzzer`, `esp32/ambiente/led_ok`, `esp32/ambiente/led_alert`, `esp32/ambiente/led_danger` |
+
+### 🔄 Exemplo de Mensagem Publicada
+
+```json
+{
+  "temperatura": 18.75,
+  "umidade": 65.20,
+  "luminosidade": 41,
+  "estado": "OK"
+}
+```
+
 ---
 
 ## 💻 Código-fonte
