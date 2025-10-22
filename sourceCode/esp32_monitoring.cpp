@@ -1,14 +1,23 @@
-#include <Adafruit_Sensor.h>                      
+#include <WiFi.h>
+#include <PubSubClient.h>
 #include <DHT.h>
 #include <DHT_U.h>
-#include <Wire.h> 
-#include <LiquidCrystal_I2C.h> 
+#include <LiquidCrystal_I2C.h>
+
+const char* ssid = "Wokwi-GUEST";
+const char* password = "";
+const char* mqtt_server = "3.90.205.40";
+const int mqtt_port = 1883;
+const char* mqtt_topic_publish = "esp32/ambiente/dados";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 #define LED_DANGER 32
 #define LED_ALERT 33
 #define LED_OK 25
 
-#define PIEZO 35
+#define PIEZO 27
 
 #define LDR 34
 int luminosity;
@@ -27,7 +36,7 @@ uint32_t delayMS = 2000;
 #define col 16 
 #define lin 2 
 #define ende 0x27 
-
+ 
 LiquidCrystal_I2C lcd(ende,col,lin); 
 unsigned long lastDisplayTime = 0;
 int currentMessageIndex = 0;
@@ -39,6 +48,87 @@ enum State {
 };
 
 State state;
+
+void setup_wifi() {
+  Serial.println("Conectando ao WiFi...");
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi conectado!");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+}
+
+void reconnectMQTT() {
+  while (!client.connected()) {
+    Serial.print("Tentando conectar MQTT...");
+    if (client.connect("ESP32_Placa")) {
+      Serial.println("Conectado!");
+      client.subscribe("esp32/ambiente/buzzer");
+      client.subscribe("esp32/ambiente/led_ok");
+      client.subscribe("esp32/ambiente/led_alert");
+      client.subscribe("esp32/ambiente/led_danger");
+    } else {
+      Serial.print("Falhou, rc=");
+      Serial.print(client.state());
+      Serial.println(" Tentando novamente em 3s");
+      delay(3000);
+    }
+  }
+}
+
+void publicarDados() {
+  String payload = "{";
+  payload += "\"temperatura\": " + String(temperature, 2) + " Cº ,";
+  payload += "\"umidade\": " + String(humidity, 2) + "% ,";
+  payload += "\"luminosidade\": " + String(luminosityMapped) + "% ,";
+  payload += "\"estado\": \"" + String(
+    state == STATE_OK ? "OK" : 
+    state == STATE_ALERT ? "ALERTA" : "PERIGO"
+  ) + "\"";
+  payload += "}";
+
+  if (client.publish(mqtt_topic_publish, payload.c_str())) {
+    Serial.print("Publicado com sucesso: ");
+    Serial.println(payload);
+  } else {
+    Serial.println("Falha ao publicar no MQTT.");
+  }
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message;
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  message.trim();
+
+  Serial.print("Comando recebido no tópico [");
+  Serial.print(topic);
+  Serial.print("]: ");
+  Serial.println(message);
+
+  if (String(topic) == "esp32/ambiente/buzzer") {
+    if (message == "ON") {
+      Serial.println("🔊 Tocando buzina via MQTT...");
+      playPiezo(2000); // toca 2s
+    }
+  }
+
+  else if (String(topic) == "esp32/ambiente/led_ok") {
+    digitalWrite(LED_OK, message == "ON" ? HIGH : LOW);
+  }
+
+  else if (String(topic) == "esp32/ambiente/led_alert") {
+    digitalWrite(LED_ALERT, message == "ON" ? HIGH : LOW);
+  }
+
+  else if (String(topic) == "esp32/ambiente/led_danger") {
+    digitalWrite(LED_DANGER, message == "ON" ? HIGH : LOW);
+  }
+}
 
 void setup() {
   Serial.begin(9600);
@@ -54,10 +144,16 @@ void setup() {
   lcd.backlight(); 
   lcd.clear(); 
 
+  setup_wifi();
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+
   checkState();
 }
 
 void loop() {
+  if (!client.connected()) reconnectMQTT();
+  client.loop();
   delay(delayMS);
   switch(state) {
     case STATE_OK:
@@ -72,6 +168,7 @@ void loop() {
       soundDanger();
       break;
   }
+  publicarDados();
   checkState();
 }
 
