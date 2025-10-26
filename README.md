@@ -43,20 +43,6 @@ Criar um sistema capaz de:
 Para testar o projeto sem precisar da VM ou hardware físico, você pode usar a simulação no **Wokwi**:  
 [Link da Simulação Wokwi](https://wokwi.com/projects/444923253527449601)
 
-## 🧰 Componentes Utilizados
-
-- **ESP32 Dev Module**
-- **Sensor DHT22** – mede temperatura e umidade do ambiente  
-- **LDR (Sensor de Luminosidade)** – mede intensidade da luz  
-- **LCD 16x2 com módulo I2C** – exibe leituras e estado atual  
-- **Buzzer Piezoelétrico** – emite alertas sonoros  
-- **LEDs (3x):**
-  - Verde – Estado OK  
-  - Amarelo – Estado de Alerta  
-  - Vermelho – Estado de Perigo  
-- **Resistores** (para LEDs e LDR)
-- **Jumpers e Protoboard**
-
 ---
 
 ## 🧠 Função dos Componentes
@@ -115,11 +101,15 @@ Para testar o projeto sem precisar da VM ou hardware físico, você pode usar a 
 
 ```json
 {
-  "temperatura": 18.75,
-  "umidade": 65.20,
-  "luminosidade": 41,
-  "estado": "OK"
+  "status": 3,
+  "state": "DANGER",
+  "temperature": 22,
+  "humidity": 60.00,
+  "luminosity": 90,
+  "alert": ["temperature"],
+  "danger": ["luminosity"]
 }
+
 ```
 
 ---
@@ -145,6 +135,52 @@ Instale-as na IDE do Arduino via Gerenciador de Bibliotecas.
 
 ---
 
+## 🌐 Frontend do Sistema de Monitoramento
+
+O frontend permite visualizar temperatura, umidade, luminosidade e estado do ambiente em tempo real diretamente no navegador, utilizando WebSocket para receber os dados do ESP32 via Node.js/MQTT.
+
+## 🖥️ Funcionalidades principais
+
+- Receber JSON publicado pelo ESP32 (`esp32/ambiente/dados`) através do servidor Node.js.
+- Atualizar valores de temperatura, umidade e luminosidade na tela em tempo real.
+- Exibir estado atual (OK, ALERTA ou PERIGO) com cores e ícones.
+- Histórico visual rápido de alertas e perigo (opcional, dependendo do frontend).
+- Interface limpa e responsiva para monitoramento remoto.
+
+## 💻 Tecnologias utilizadas
+
+- HTML/CSS/JS – Estrutura e estilização.
+- WeSocket API – Conexão em tempo real entre Node.js e navegador.
+- Chart.js (opcional) – Para gráficos de histórico em tempo real.
+- Node.js + express + ws + mqtt – Backend que faz ponte MQTT → WebSocket.
+
+## 🔗 Estrutura simplificada do frontend
+
+<div align="center">
+  
+<img src="https://cdn.statically.io/gh/DaviMunhoz1005/esp32-smart-environment/main/images/frontend_charts.png" alt="Frontend Charts" width="600">
+
+</div>
+
+## 🔧 Integração com o Node.js
+
+- O Node.js assina o tópico MQTT do ESP32 (esp32/ambiente/dados) e repassa o JSON via WebSocket para todos os clientes conectados.
+- Se o frontend estiver aberto no navegador, ele atualiza os dados em tempo real, sem precisar recarregar a página.
+
+<div align="center">
+  
+<img src="https://cdn.statically.io/gh/DaviMunhoz1005/esp32-smart-environment/main/images/terminal_integrate.png" alt="Terminal Integrate" width="600">
+
+</div>
+
+## 🔄 Observações importantes
+
+- Certifique-se que broker MQTT, Node.js e ESP32 estão na mesma rede ou acessíveis via IP público.
+- O frontend se conecta ao WebSocket usando o endereço do servidor Node.js, normalmente ws://<IP_DO_SERVIDOR>:3000.
+- O ESP32 publica JSON com campos: `status`, `state`, `temperature`, `humidity`, `luminosity`, `alert` e `danger`.
+
+---
+
 ## 🚦 Lógica de funcionamento
 
 | Estado | Condições | Ações |
@@ -167,26 +203,27 @@ Instale-as na IDE do Arduino via Gerenciador de Bibliotecas.
 
 ---
 
-## 🧠 Faixas de referência
-
-| Parâmetro | OK | ALERTA | PERIGO |
-|-------------|--------|------------------|------------------|
-| Temperatura | 10–18°C | 8–10 ou 18–20°C | <8 ou >20°C |
-| Umidade | 60–70% | 50–60 ou 70–75% | <50 ou >75% |
-| Luminosidade | <33% | 33–66% | >66% |
-
----
-
 ## 🗂️ Estrutura do repositório
 
 ```bash
 📁 esp32-smart-environment
 │
 ├── 📄 README.md
+├── 📁 public
+│   ├── 📁 src
+│   │   └── 📁 js
+│   │       └── script.js
+│   └── index.html
 ├── 📁 sourceCode
 │   └── esp32_monitoring.cpp
+│   📁 server
+│   ├── server.js
+│   ├── package.json
+│   └── package-lock.json
 ├── 📁 images
-│   └── system_schematic.png
+│   ├── terminal_integrate.png
+│   ├── system_schematic.png
+│   └── frontend_charts.png
 └── 📁 configs
     └── mymqtt_config.txt
 ```
