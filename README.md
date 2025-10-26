@@ -209,6 +209,7 @@ O frontend permite visualizar temperatura, umidade, luminosidade e estado do amb
 📁 esp32-smart-environment
 │
 ├── 📄 README.md
+├── 📄.gitignore
 ├── 📁 public
 │   ├── 📁 src
 │   │   └── 📁 js
