@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Painel ESP32 - Monitoramento Ambiental</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center p-8">
+    <h1 class="text-4xl font-bold text-yellow-400 mb-8">Monitoramento em Tempo Real - ESP32</h1>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-5xl">
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <h2 class="text-xl font-semibold mb-4 text-blue-400">Temperatura (°C)</h2>
+            <canvas id="chartTemp"></canvas>
+        </div>
+
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <h2 class="text-xl font-semibold mb-4 text-green-400">Umidade (%)</h2>
+            <canvas id="chartHum"></canvas>
+        </div>
+
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <h2 class="text-xl font-semibold mb-4 text-yellow-400">Luminosidade (%)</h2>
+            <canvas id="chartLum"></canvas>
+        </div>
+
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-xl flex flex-col justify-center items-center">
+            <h2 class="text-xl font-semibold mb-4 text-red-400">Estado do Sistema</h2>
+            <div id="estadoAtual" class="text-3xl font-bold text-center">--</div>
+        </div>
+    </div>
+
+    <script src="src/js/script.js"></script>
+</body>
+</html>

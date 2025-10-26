@@ -4,9 +4,11 @@
 #include <DHT_U.h>
 #include <LiquidCrystal_I2C.h>
 
+#include <cstring>
+
 const char* ssid = "Wokwi-GUEST";
 const char* password = "";
-const char* mqtt_server = "3.90.205.40";
+const char* mqtt_server = "18.234.110.71";
 const int mqtt_port = 1883;
 const char* mqtt_topic_publish = "esp32/ambiente/dados";
 
@@ -18,6 +20,8 @@ PubSubClient client(espClient);
 #define LED_OK 25
 
 #define PIEZO 27
+unsigned long lastPiezoTime = 0;
+bool piezoOn = false;
 
 #define LDR 34
 int luminosity;
@@ -47,7 +51,21 @@ enum State {
   STATE_DANGER
 };
 
+String getStateName(State state) {
+  switch (state) {
+    case STATE_OK: return "OK";
+    case STATE_ALERT: return "ALERTA";
+    case STATE_DANGER: return "PERIGO";
+    default: return "DESCONHECIDO";
+  }
+}
+
 State state;
+
+char parameterInAlert[3][15];
+int totalWordsAlert = 0;
+char parameterInDanger[3][15];
+int totalWordsDanger = 0;
 
 void setup_wifi() {
   Serial.println("Conectando ao WiFi...");
@@ -81,16 +99,26 @@ void reconnectMQTT() {
 
 void publicarDados() {
   String payload = "{";
-  payload += "\"temperatura\": " + String(temperature, 2) + " Cº ,";
-  payload += "\"umidade\": " + String(humidity, 2) + "% ,";
-  payload += "\"luminosidade\": " + String(luminosityMapped) + "% ,";
-  payload += "\"estado\": \"" + String(
-    state == STATE_OK ? "OK" : 
-    state == STATE_ALERT ? "ALERTA" : "PERIGO"
-  ) + "\"";
+  payload += "\"status\": " + String((int)state) + ",";
+  payload += "\"state\": \"" + getStateName(state) + "\",";
+  payload += "\"temperature\": " + String(temperature, 2) + ",";
+  payload += "\"humidity\": " + String(humidity, 2) + ",";
+  payload += "\"luminosity\": " + String(luminosityMapped) + ",";
+  payload += "\"alert\": [";
+  for (int i = 0; i < totalWordsAlert; i++){
+    payload += "\"" + String(parameterInAlert[i]) + "\"";
+    if (i < totalWordsAlert - 1) payload += ",";
+  }
+  payload += "],";
+  payload += "\"danger\": [";
+  for (int i = 0; i < totalWordsDanger; i++){
+    payload += "\"" + String(parameterInDanger[i]) + "\"";
+    if (i < totalWordsDanger - 1) payload += ",";
+  }
+  payload += "]";
   payload += "}";
 
-  if (client.publish(mqtt_topic_publish, payload.c_str())) {
+  if (client.publish(mqtt_topic_publish, payload.c_str())){
     Serial.print("Publicado com sucesso: ");
     Serial.println(payload);
   } else {
@@ -113,7 +141,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   if (String(topic) == "esp32/ambiente/buzzer") {
     if (message == "ON") {
       Serial.println("🔊 Tocando buzina via MQTT...");
-      playPiezo(2000); // toca 2s
+      playPiezo(2000);
     }
   }
 
@@ -128,6 +156,73 @@ void callback(char* topic, byte* payload, unsigned int length) {
   else if (String(topic) == "esp32/ambiente/led_danger") {
     digitalWrite(LED_DANGER, message == "ON" ? HIGH : LOW);
   }
+}
+
+void addWord(char arr[][15], int &total, const char* parameter) {
+  if (total >= 3) {
+    Serial.println("Erro: array cheio");
+  }
+  if (strlen(parameter) >= 15) {
+    Serial.println("Erro: palavra muito longa");
+  }
+  strcpy(arr[total], parameter);
+  total++;
+}
+
+bool containsWord(char arr[][15], int total, const char* parameter) {
+  for (int i = 0; i < total; i++) {
+    if (strcmp(arr[i], parameter) == 0) return true;
+  }
+  return false;
+}
+
+void removeWord(char arr[][15], int &total, const char* parameter) {
+  for (int i = 0; i < total; i++) {
+    if (strcmp(arr[i], parameter) == 0) {
+      for (int j = i; j < total-1; j++) {
+        strcpy(arr[j], arr[j+1]);
+      }
+      total--;
+      arr[total][0] = '\0'; // opcional
+    }
+  }
+}
+
+void clearArray(char arr[][15], int &total) {
+  for (int i = 0; i < total; i++) {
+    arr[i][0] = '\0';  
+  }
+  total = 0;           
+}
+
+void addWordSmart(char targetArr[][15], int &targetTotal,
+                  char otherArr[][15], int &otherTotal,
+                  const char* parameter) {
+
+  if (containsWord(targetArr, targetTotal, parameter)) {
+    Serial.println("Palavra já existe no array alvo. Não será adicionada.");
+  }
+  if (containsWord(otherArr, otherTotal, parameter)) {
+    removeWord(otherArr, otherTotal, parameter);
+    Serial.println("Palavra removida do outro array.");
+  }
+  addWord(targetArr, targetTotal, parameter);
+}
+
+bool removeWordSmart(char targetArr[][15], int &targetTotal,
+                    char otherArr[][15], int &otherTotal,
+                    const char* parameter, bool isDanger) {
+  
+  if (isDanger) {
+    addWordSmart(targetArr, targetTotal,
+             otherArr, otherTotal,
+             parameter);
+    return true;
+  }
+  else if (containsWord(targetArr, targetTotal, parameter)) {
+    removeWord(targetArr, targetTotal, parameter);
+  }
+  return false;
 }
 
 void setup() {
@@ -154,10 +249,13 @@ void setup() {
 void loop() {
   if (!client.connected()) reconnectMQTT();
   client.loop();
-  delay(delayMS);
+
+  checkState();
+
   switch(state) {
     case STATE_OK:
       turnLEDsOnAndOff(0, 0, 1);
+      noTone(PIEZO);
       break;
     case STATE_ALERT:
       turnLEDsOnAndOff(0, 1, 0);
@@ -168,22 +266,31 @@ void loop() {
       soundDanger();
       break;
   }
-  publicarDados();
-  checkState();
 }
 
 void checkState() {
   getMappedLuminosity();
   getTemperature();
   getHumidity();
-  if (isInDanger()) { 
-    state = STATE_DANGER;
-  } else if (isInAlert()) { 
+
+  clearArray(parameterInAlert, totalWordsAlert); 
+  clearArray(parameterInDanger, totalWordsDanger);
+
+  bool isAlert = isInAlert();
+  bool isDanger = isInDanger();
+
+  if (isAlert) { 
     state = STATE_ALERT;
-  } else { 
+  } 
+  if (isDanger) { 
+    state = STATE_DANGER;
+  } else if (!isAlert && !isDanger) { 
     state = STATE_OK;
     displayOKMessages();
   }
+
+  delay(1000);
+  publicarDados();
 }
 
 void getMappedLuminosity() {
@@ -226,19 +333,34 @@ boolean isInDanger() {
   String title = "";
   String value = "";
 
-  if (luminosityMapped > 66) {
+  if (removeWordSmart(parameterInDanger, totalWordsDanger,
+      parameterInAlert, totalWordsAlert,
+      "luminosity", (luminosityMapped > 66))) {
+
     title = "Luz ALTA";
     value = "Luz = " + String(luminosityMapped) + "%";
-  } else if (temperature < 8) {
+  } else if (removeWordSmart(parameterInDanger, totalWordsDanger,
+      parameterInAlert, totalWordsAlert,
+      "temperature", (temperature < 8))) {
+        
     title = "Temp. BAIXA";
     value = "Temp. = " + String(temperature, 1) + "C";
-  } else if (temperature > 20) {
+  } else if (removeWordSmart(parameterInDanger, totalWordsDanger,
+      parameterInAlert, totalWordsAlert,
+      "temperature", (temperature > 20))) {
+
     title = "Temp. ALTA";
     value = "Temp. = " + String(temperature, 1) + "C";
-  } else if (humidity < 50) {
+  } else if (removeWordSmart(parameterInDanger, totalWordsDanger,
+      parameterInAlert, totalWordsAlert,
+      "humidity", (humidity < 50))) {
+
     title = "Umidade BAIXA";
     value = "Umi. = " + String(humidity, 1) + "%";
-  } else if (humidity > 75) {
+  } else if (removeWordSmart(parameterInDanger, totalWordsDanger,
+      parameterInAlert, totalWordsAlert,
+      "humidity", (humidity > 75))) {
+
     title = "Umidade ALTA";
     value = "Umi. = " + String(humidity, 1) + "%";
   }
@@ -255,19 +377,34 @@ boolean isInAlert() {
   String title = "";
   String value = "";
 
-  if (luminosityMapped > 33 && luminosityMapped <= 66) {
+  if (removeWordSmart(parameterInAlert, totalWordsAlert,
+      parameterInDanger, totalWordsDanger,
+      "luminosity", (luminosityMapped > 33 && luminosityMapped <= 66))) {
+
     title = "Luz MODERADA";
     value = "Luz = " + String(luminosityMapped) + "%";
-  } else if (temperature >= 8 && temperature <= 10) {
+  } else if (removeWordSmart(parameterInAlert, totalWordsAlert,
+      parameterInDanger, totalWordsDanger,
+      "temperature", (temperature >= 8 && temperature <= 10))) {
+
     title = "Temp. MOD. BAIXA";
     value = "Temp. = " + String(temperature, 1) + "C";
-  } else if (temperature >= 18 && temperature <= 20) {
+  } else if (removeWordSmart(parameterInAlert, totalWordsAlert,
+      parameterInDanger, totalWordsDanger,
+      "temperature", (temperature >= 18 && temperature <= 20))) {
+
     title = "Temp. MOD. ALTA";
     value = "Temp. = " + String(temperature, 1) + "C";
-  } else if (humidity >= 50 && humidity <= 60) {
+  } else if (removeWordSmart(parameterInAlert, totalWordsAlert,
+      parameterInDanger, totalWordsDanger,
+      "humidity", (humidity >= 50 && humidity <= 60))) {
+
     title = "Umi. MOD. BAIXA";
     value = "Umi. = " + String(humidity, 1) + "%";
-  } else if (humidity >= 70 && humidity <= 75) {
+  } else if (removeWordSmart(parameterInAlert, totalWordsAlert,
+      parameterInDanger, totalWordsDanger,
+      "humidity", (humidity >= 70 && humidity <= 75))) {
+
     title = "Umi. MOD. ALTA";
     value = "Umi. = " + String(humidity, 1) + "%";
   }
@@ -321,20 +458,32 @@ void displayOKMessages() {
 }
 
 void soundAlert() {
-  playPiezo(3000);
-  unsigned int startTime = millis();
-  while (millis() - startTime < 5000) {
-    checkState();
-    if (state != STATE_ALERT) {
-      return;
-    }
+  unsigned long now = millis();
+
+  if (!piezoOn && now - lastPiezoTime >= 5000) {
+    tone(PIEZO, 1500);
+    piezoOn = true;
+    lastPiezoTime = now;
+  }
+  else if (piezoOn && now - lastPiezoTime >= 2000) {
+    noTone(PIEZO);
+    piezoOn = false;
+    lastPiezoTime = now;
   }
 }
 
 void soundDanger() {
-  while (state == STATE_DANGER) {
-    playPiezo(1000);
-    checkState();
+  unsigned long now = millis();
+
+  if (!piezoOn && now - lastPiezoTime >= 300) {
+    tone(PIEZO, 1500);
+    piezoOn = true;
+    lastPiezoTime = now;
+  }
+  else if (piezoOn && now - lastPiezoTime >= 300) {
+    noTone(PIEZO);
+    piezoOn = false;
+    lastPiezoTime = now;
   }
 }
 
