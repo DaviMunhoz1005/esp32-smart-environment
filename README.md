@@ -33,8 +33,8 @@ Criar um sistema capaz de:
 ## 🧩 Ligações elétricas (esquemático)
 
 <div align="center">
-
-![Esquemática do Sistema](images/system_schematic.png)
+  
+<img src="https://cdn.statically.io/gh/DaviMunhoz1005/esp32-smart-environment/main/images/system_schematic.png" alt="System Schematic" width="600">
 
 </div>
 
